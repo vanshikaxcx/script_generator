@@ -49,6 +49,23 @@ if uploaded_file:
                 st.error("❌ Audio extraction failed. Please upload a video with a valid audio track.")
                 st.stop()
 
+        # Check audio size
+        if not os.path.exists("audio.wav") or os.path.getsize("audio.wav") == 0:
+            st.error("❌ Audio file is empty.")
+            st.stop()
+
+        # Check duration using ffprobe
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", 
+             "default=noprint_wrappers=1:nokey=1", "audio.wav"],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
+        duration = float(result.stdout.decode().strip())
+
+        if duration < 0.5:
+            st.error("❌ Extracted audio is too short or silent.")
+            st.stop()
+
         # Transcribe using Whisper
         st.write("📝 Transcribing with Whisper...")
         with st.spinner("Transcribing audio..."):
