@@ -5,16 +5,13 @@ import whisper
 import subprocess
 import google.generativeai as genai
 
+from dotenv import load_dotenv
+load_dotenv()  # load from .env
+
 st.title("🎬 Viral Script Generator")
 
 # Set Gemini API key
-from dotenv import load_dotenv
-import os
-
-load_dotenv()  # load from .env
-
 api_key = os.getenv("GOOGLE_API_KEY")
-
 
 # SSL fix for Whisper model download
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -28,6 +25,10 @@ whisper_model = load_whisper_model()
 
 # Upload video
 uploaded_file = st.file_uploader("📁 Upload a video", type=["mp4", "mov", "mkv"])
+
+# Language selector
+language_option = st.selectbox("🌐 Select Audio Language", ["Auto", "English", "Hindi", "Urdu"])
+lang_code = None if language_option == "Auto" else language_option
 
 if uploaded_file:
     try:
@@ -43,10 +44,13 @@ if uploaded_file:
                 "ffmpeg", "-i", "temp_video.mp4", "-q:a", "0", "-map", "a", "audio.wav", "-y"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        # 📝 Transcribe using Whisper
+        # 📝 Transcribe using Whisper with language selection
         st.write("📝 Transcribing with Whisper...")
         with st.spinner("Transcribing audio..."):
-            result = whisper_model.transcribe("audio.wav")
+            if lang_code:
+                result = whisper_model.transcribe("audio.wav", language=lang_code)
+            else:
+                result = whisper_model.transcribe("audio.wav")
             transcript = result["text"]
 
         st.success("✅ Transcription complete")
@@ -100,7 +104,6 @@ if uploaded_file:
         Now reimagine it completely and write a **new viral-ready Instagram Reel script**. New context, new characters, same vibe — but crafted to **hit harder, feel real**, and work for Indian Gen-Z viewers in 2025.
 
         Respond with only the full formatted script below.
-
         """
 
         with st.spinner("✨ Generating new script..."):
@@ -110,8 +113,23 @@ if uploaded_file:
         new_script = response.text.strip()
         cleaned_output = new_script.replace("**", "")
         st.text_area("📢 Final Script:", cleaned_output, height=200)
-
         st.download_button("📥 Download Script", cleaned_output, file_name="new_script.txt")
+
+        # 📤 Extract only VOICEOVER lines
+        voiceover_lines = []
+        for line in cleaned_output.splitlines():
+            if line.strip().lower().startswith("voiceover:"):
+                voice_line = line.split(":", 1)[1].strip()
+                if voice_line:
+                    voiceover_lines.append(voice_line)
+
+        voiceover_script = "\n".join(voiceover_lines)
+
+        if voiceover_script:
+            st.text_area("🎤 Voiceover Script Only:", voiceover_script, height=150)
+            st.download_button("🔊 Download Voiceover Script", voiceover_script, file_name="voiceover_script.txt")
+        else:
+            st.info("No VOICEOVER lines found in the script.")
 
         # 🧹 Clean up files
         os.remove("temp_video.mp4")
@@ -124,6 +142,5 @@ if uploaded_file:
                 os.remove("temp_video.mp4")
             if os.path.exists("audio.wav"):
                 os.remove("audio.wav")
-
         except:
             pass
