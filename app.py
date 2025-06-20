@@ -38,10 +38,8 @@ if uploaded_file:
         st.video("temp_video.mp4")
 
         # 🔄 Extract audio using ffmpeg
-        st.write("🎧 Extracting audio...")
-        with st.spinner("Extracting audio from video..."):
-            subprocess.run([
-                "ffmpeg", "-i", "temp_video.mp4", "-q:a", "0", "-map", "a", "audio.wav", "-y"
+        subprocess.run([
+         "ffmpeg", "-i", "temp_video.mp4", "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", "audio.wav", "-y"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # 📝 Transcribe using Whisper with language selection
