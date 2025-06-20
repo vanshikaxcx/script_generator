@@ -4,3 +4,4 @@ python-dotenv
 requests
 openai
 pandas
+git+https://github.com/openai/whisper.git
