@@ -47,10 +47,10 @@ if uploaded_file:
         # 📝 Transcribe using Whisper with language selection
         st.write("📝 Transcribing with Whisper...")
         with st.spinner("Transcribing audio..."):
-            if lang_code:
+            if lang_code and lang_code.lower() != "english":
                 result = whisper_model.transcribe("audio.wav", language=lang_code, task="translate")
             else:
-                result = whisper_model.transcribe("audio.wav", task="translate")
+                result = whisper_model.transcribe("audio.wav")
 
         st.success("✅ Transcription complete")
         st.text_area("📄 Transcript:", transcript, height=150)
