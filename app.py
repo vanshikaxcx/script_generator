@@ -10,33 +10,27 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 
-# Set up SSL context
+# SSL workaround for Whisper
 ssl._create_default_https_context = ssl._create_unverified_context
 
 st.title("🎬 Viral Script Generator")
 
-# Load Whisper model once and cache it
 @st.cache_resource
 def load_whisper_model():
     return whisper.load_model("base")
 
 whisper_model = load_whisper_model()
 
-# Upload video
 uploaded_file = st.file_uploader("📁 Upload a video", type=["mp4", "mov", "mkv"])
-
-# Language selector
 language_option = st.selectbox("🌐 Select Audio Language", ["Auto", "English", "Hindi", "Urdu"])
 lang_code = None if language_option == "Auto" else language_option
 
 if uploaded_file:
     try:
-        # Save the uploaded video
         with open("temp_video.mp4", "wb") as f:
             f.write(uploaded_file.read())
         st.video("temp_video.mp4")
 
-        # Extract audio using ffmpeg (safe and standard format)
         st.write("🎧 Extracting audio...")
         with st.spinner("Extracting audio from video..."):
             subprocess.run([
@@ -44,41 +38,43 @@ if uploaded_file:
                 "-ar", "16000", "-ac", "1", "audio.wav", "-y"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-            # Check if audio was successfully created
-            if not os.path.exists("audio.wav") or os.path.getsize("audio.wav") == 0:
-                st.error("❌ Audio extraction failed. Please upload a video with a valid audio track.")
-                st.stop()
-
-        # Check audio size
         if not os.path.exists("audio.wav") or os.path.getsize("audio.wav") == 0:
-            st.error("❌ Audio file is empty.")
+            st.error("❌ Audio extraction failed. Please upload a video with a valid audio track.")
             st.stop()
 
-        # Check duration using ffprobe
         result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", 
-             "default=noprint_wrappers=1:nokey=1", "audio.wav"],
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", "audio.wav"],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        duration = float(result.stdout.decode().strip())
 
-        if duration < 0.5:
-            st.error("❌ Extracted audio is too short or silent.")
+        try:
+            duration = float(result.stdout.decode().strip())
+            if duration < 0.5:
+                st.error("❌ Audio is too short or silent. Try a longer video.")
+                st.stop()
+        except:
+            st.error("❌ Could not verify audio duration.")
             st.stop()
 
-        # Transcribe using Whisper
+        st.audio("audio.wav")  # Let user hear it if they want
+
         st.write("📝 Transcribing with Whisper...")
         with st.spinner("Transcribing audio..."):
-            if lang_code and lang_code.lower() != "english":
-                result = whisper_model.transcribe("audio.wav", language=lang_code, task="translate")
-            else:
-                result = whisper_model.transcribe("audio.wav")
-            transcript = result["text"]
+            result = whisper_model.transcribe(
+                "audio.wav",
+                language=lang_code if lang_code else None,
+                task="translate"  # Force English output
+            )
+            transcript = result["text"].strip()
+
+        if not transcript:
+            st.error("❌ Transcription failed or returned empty text.")
+            st.stop()
 
         st.success("✅ Transcription complete")
         st.text_area("📄 Transcript:", transcript, height=150)
 
-        # Prompt for Gemini
         st.write("🧠 Generating fresh, viral-ready script...")
 
         prompt = f"""
@@ -132,16 +128,13 @@ Respond with only the full formatted script below.
             gemini_model = genai.GenerativeModel(model_name="gemini-2.5-flash")
             response = gemini_model.generate_content(prompt)
 
-        new_script = response.text.strip()
-        cleaned_output = new_script.replace("**", "")
-
-        # Show full script
-        st.text_area("📢 Final Script:", cleaned_output, height=200)
-        st.download_button("📥 Download Script", cleaned_output, file_name="new_script.txt")
+        new_script = response.text.strip().replace("**", "")
+        st.text_area("📢 Final Script:", new_script, height=200)
+        st.download_button("📥 Download Script", new_script, file_name="new_script.txt")
 
         # Extract only VOICEOVER lines
         voiceover_lines = []
-        for line in cleaned_output.splitlines():
+        for line in new_script.splitlines():
             if line.strip().lower().startswith("voiceover:"):
                 voice_line = line.split(":", 1)[1].strip()
                 if voice_line:
