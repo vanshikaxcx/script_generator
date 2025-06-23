@@ -12,7 +12,6 @@ import tempfile
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 
-# SSL workaround for Whisper
 ssl._create_default_https_context = ssl._create_unverified_context
 
 st.title("🎬 Viral Script Generator")
@@ -25,6 +24,7 @@ whisper_model = load_whisper_model()
 
 input_mode = st.radio("📥 Choose input type:", ["Upload Video", "Paste Reel Link"])
 video_file_path = None
+temp_audio_file = "audio.wav"
 
 if input_mode == "Upload Video":
     uploaded_file = st.file_uploader("📁 Upload a video", type=["mp4", "mov", "mkv"])
@@ -55,7 +55,7 @@ elif input_mode == "Paste Reel Link":
                         ydl.download([reel_link])
 
                     for file in os.listdir(tmpdir):
-                        if file.endswith(".mp4") or file.endswith(".m4a") or file.endswith(".mp3"):
+                        if file.endswith((".mp3", ".m4a", ".aac")):
                             video_file_path = os.path.join(tmpdir, file)
                             break
             except Exception as e:
@@ -67,52 +67,41 @@ lang_code = None if language_option == "Auto" else language_option
 if video_file_path:
     try:
         st.write("🎧 Extracting audio...")
-        with st.spinner("Extracting audio from video..."):
-            # If it's already audio (mp3/m4a from Reel), just convert
-                if video_file_path.endswith((".mp3", ".m4a")):
-                    subprocess.run([
-                        "ffmpeg", "-i", video_file_path, "-ar", "16000", "-ac", "1",
-                        "-acodec", "pcm_s16le", "audio.wav", "-y"
-                    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                else:
-                    # Upload case (has video stream)
-                    subprocess.run([
-                        "ffmpeg", "-i", video_file_path, "-vn", "-acodec", "pcm_s16le",
-                        "-ar", "16000", "-ac", "1", "audio.wav", "-y"
-                    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with st.spinner("Extracting audio from source..."):
+            if video_file_path.endswith((".mp3", ".m4a", ".aac")):
+                ffmpeg_cmd = [
+                    "ffmpeg", "-y", "-i", video_file_path,
+                    "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", temp_audio_file
+                ]
+            else:
+                ffmpeg_cmd = [
+                    "ffmpeg", "-y", "-i", video_file_path, "-vn",
+                    "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", temp_audio_file
+                ]
 
-        if not os.path.exists("audio.wav") or os.path.getsize("audio.wav") == 0:
-            st.error("❌ Audio extraction failed. Please upload a video with a valid audio track.")
-            st.stop()
+            result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=noprint_wrappers=1:nokey=1", "audio.wav"],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-        )
-
-        try:
-            duration = float(result.stdout.decode().strip())
-            if duration < 0.5:
-                st.error("❌ Audio is too short or silent. Try a longer video.")
+            if result.returncode != 0 or not os.path.exists(temp_audio_file):
+                st.error("❌ Audio extraction failed.")
                 st.stop()
-        except:
-            st.error("❌ Could not verify audio duration.")
+
+        if os.path.getsize(temp_audio_file) == 0:
+            st.error("❌ Extracted audio is empty. Try another video.")
             st.stop()
 
-        st.audio("audio.wav")
+        st.audio(temp_audio_file)
 
         st.write("📝 Transcribing with Whisper...")
-        with st.spinner("Transcribing audio..."):
+        with st.spinner("Transcribing..."):
             result = whisper_model.transcribe(
-                "audio.wav",
+                temp_audio_file,
                 language=lang_code if lang_code else None,
                 task="translate"
             )
             transcript = result["text"].strip()
 
         if not transcript:
-            st.error("❌ Transcription failed or returned empty text.")
+            st.error("❌ Transcription returned no text.")
             st.stop()
 
         st.success("✅ Transcription complete")
@@ -126,45 +115,27 @@ You're a creative director and viral scriptwriter for Gen-Z Instagram Reels in t
 Your job is to transform the transcript below into a **completely new, reimagined video script** that:
 
 - Keeps the **emotional vibe, tone, and intent** of the original
-- Tells a **visually and narratively different story** (NO reuse of plot, characters, or locations)
-- Is designed for a **40–45 second Instagram Reel** (tight, crisp, scroll-stopping)
-- Sounds **authentic and unscripted** — like something an actual creator would say
-- Uses **chaotic desi relatability**, funny breakdowns, street moments, sarcastic voiceovers, or quirky interruptions
-- Includes a **strong hook in the first 5 seconds** that makes people stop scrolling
-- Ends with a **high-impact, funny, or emotional CTA** that encourages tagging, sharing, or commenting
+- Tells a **visually and narratively different story**
+- Is designed for a **40–45 second Instagram Reel**
+- Sounds **authentic and unscripted**
+- Uses **chaotic desi relatability**, funny breakdowns, street moments, sarcastic voiceovers
+- Includes a **strong hook**, and ends with a **funny or emotional CTA**
 
 ---
 
 🎬 REEL FORMAT:
-Structure your response scene-by-scene, like this:
-
-- CAMERA: (e.g., Close-up, montage, slow pan, handheld, etc.)
-- VISUAL: What’s happening in the frame
-- AUDIO: Music or sound effects
-- TEXT OVERLAY: On-screen Instagram-style captions
-- VOICEOVER: Natural, expressive line creator would speak
-
----
-
-📌 KEY STYLE RULES:
-- Use **spoken desi Gen-Z lingo**, not AI-polished narration
-- Prioritize **fast pacing**, **momentum**, and **humorous chaos**
-- Include 1 unexpected **twist or real-life desi interruption**
-- Feel free to break the 4th wall, or add sarcasm
-- Limit total script to 40–45 seconds of screen time
-- Avoid using **"Pure therapy"**, "emotional support drink", "serotonin boost" unless rephrased in funny or raw ways
+- CAMERA:
+- VISUAL:
+- AUDIO:
+- TEXT OVERLAY:
+- VOICEOVER:
 
 ---
 
 🎤 Transcript:
 {transcript}
 
-
---
-
-Now reimagine it completely and write a **new viral-ready Instagram Reel script**. New context, new characters, same vibe — but crafted to **hit harder, feel real**, and work for Indian Gen-Z viewers in 2025.
-
-Respond with only the full formatted script below.
+Now reimagine it completely and write a new Instagram Reel script. Respond with only the script.
 """
 
         with st.spinner("✨ Generating new script..."):
@@ -190,18 +161,17 @@ Respond with only the full formatted script below.
         else:
             st.info("No VOICEOVER lines found in the script.")
 
-        # Clean up only if local file
         if os.path.exists("temp_video.mp4"):
             os.remove("temp_video.mp4")
-        if os.path.exists("audio.wav"):
-            os.remove("audio.wav")
+        if os.path.exists(temp_audio_file):
+            os.remove(temp_audio_file)
 
     except Exception as e:
         st.error(f"❌ An error occurred: {str(e)}")
         try:
             if os.path.exists("temp_video.mp4"):
                 os.remove("temp_video.mp4")
-            if os.path.exists("audio.wav"):
-                os.remove("audio.wav")
+            if os.path.exists(temp_audio_file):
+                os.remove(temp_audio_file)
         except:
             pass
