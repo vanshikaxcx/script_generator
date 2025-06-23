@@ -47,7 +47,7 @@ elif input_mode == "Paste Reel Link":
                         'outtmpl': output_template,
                         'postprocessors': [{
                             'key': 'FFmpegExtractAudio',
-                            'preferredcodec': 'mp4',
+                            'preferredcodec': 'mp3',
                         }],
                         'quiet': True
                     }
