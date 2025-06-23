@@ -68,6 +68,14 @@ if video_file_path:
     try:
         st.write("🎧 Extracting audio...")
         with st.spinner("Extracting audio from video..."):
+            # If it's already audio (mp3/m4a from Reel), just convert
+        if video_file_path.endswith((".mp3", ".m4a")):
+            subprocess.run([
+                "ffmpeg", "-i", video_file_path, "-ar", "16000", "-ac", "1",
+                "-acodec", "pcm_s16le", "audio.wav", "-y"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            # Upload case (has video stream)
             subprocess.run([
                 "ffmpeg", "-i", video_file_path, "-vn", "-acodec", "pcm_s16le",
                 "-ar", "16000", "-ac", "1", "audio.wav", "-y"
