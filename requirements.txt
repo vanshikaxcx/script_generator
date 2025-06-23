@@ -6,3 +6,6 @@ openai
 pandas
 git+https://github.com/openai/whisper.git
 ffmpeg-python
+pyannote.audio
+torch
+torchaudio
