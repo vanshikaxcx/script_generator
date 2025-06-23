@@ -162,5 +162,3 @@ Respond with only the full formatted script below.
         except:
             pass
 
-also tell me what changes i will have to make in this file and where and what
-apart from this tell be step by step how to activate speaker diarization in this project
