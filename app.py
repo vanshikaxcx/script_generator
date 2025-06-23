@@ -38,28 +38,33 @@ elif input_mode == "Paste Reel Link":
     reel_link = st.text_input("🔗 Paste Instagram Reel URL")
     if reel_link:
         st.info("🔄 Downloading Reel...")
-        with st.spinner("Fetching audio from link..."):
+        with st.spinner("Fetching reel from Instagram..."):
             try:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     output_template = os.path.join(tmpdir, "reel.%(ext)s")
                     ydl_opts = {
-                        'format': 'bestaudio/best',
+                        'format': 'mp4',
                         'outtmpl': output_template,
-                        'postprocessors': [{
-                            'key': 'FFmpegExtractAudio',
-                            'preferredcodec': 'mp3',
-                        }],
-                        'quiet': True
+                        'quiet': True,
+                        'noplaylist': True
                     }
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         ydl.download([reel_link])
 
                     for file in os.listdir(tmpdir):
-                        if file.endswith((".mp3", ".m4a", ".aac")):
+                        if file.endswith(".mp4"):
                             video_file_path = os.path.join(tmpdir, file)
                             break
+
+                if not video_file_path or not os.path.exists(video_file_path):
+                    st.error("❌ Video download failed. Could not process the reel.")
+                    st.stop()
+
+                st.video(video_file_path)
+
             except Exception as e:
                 st.error(f"❌ Failed to download reel: {e}")
+                st.stop()
 
 language_option = st.selectbox("🌐 Select Audio Language", ["Auto", "English", "Hindi", "Urdu"])
 lang_code = None if language_option == "Auto" else language_option
@@ -67,18 +72,11 @@ lang_code = None if language_option == "Auto" else language_option
 if video_file_path:
     try:
         st.write("🎧 Extracting audio...")
-        with st.spinner("Extracting audio from source..."):
-            if video_file_path.endswith((".mp3", ".m4a", ".aac")):
-                ffmpeg_cmd = [
-                    "ffmpeg", "-y", "-i", video_file_path,
-                    "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", temp_audio_file
-                ]
-            else:
-                ffmpeg_cmd = [
-                    "ffmpeg", "-y", "-i", video_file_path, "-vn",
-                    "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", temp_audio_file
-                ]
-
+        with st.spinner("Extracting audio from video..."):
+            ffmpeg_cmd = [
+                "ffmpeg", "-y", "-i", video_file_path,
+                "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", temp_audio_file
+            ]
             result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if result.returncode != 0 or not os.path.exists(temp_audio_file):
