@@ -5,6 +5,8 @@ import whisper
 import subprocess
 import google.generativeai as genai
 from dotenv import load_dotenv
+import yt_dlp
+import tempfile
 
 # Load environment variables
 load_dotenv()
@@ -21,20 +23,53 @@ def load_whisper_model():
 
 whisper_model = load_whisper_model()
 
-uploaded_file = st.file_uploader("📁 Upload a video", type=["mp4", "mov", "mkv"])
+input_mode = st.radio("📥 Choose input type:", ["Upload Video", "Paste Reel Link"])
+video_file_path = None
+
+if input_mode == "Upload Video":
+    uploaded_file = st.file_uploader("📁 Upload a video", type=["mp4", "mov", "mkv"])
+    if uploaded_file:
+        with open("temp_video.mp4", "wb") as f:
+            f.write(uploaded_file.read())
+        video_file_path = "temp_video.mp4"
+        st.video("temp_video.mp4")
+
+elif input_mode == "Paste Reel Link":
+    reel_link = st.text_input("🔗 Paste Instagram Reel URL")
+    if reel_link:
+        st.info("🔄 Downloading Reel...")
+        with st.spinner("Fetching audio from link..."):
+            try:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    output_template = os.path.join(tmpdir, "reel.%(ext)s")
+                    ydl_opts = {
+                        'format': 'bestaudio/best',
+                        'outtmpl': output_template,
+                        'postprocessors': [{
+                            'key': 'FFmpegExtractAudio',
+                            'preferredcodec': 'mp4',
+                        }],
+                        'quiet': True
+                    }
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([reel_link])
+
+                    for file in os.listdir(tmpdir):
+                        if file.endswith(".mp4") or file.endswith(".m4a") or file.endswith(".mp3"):
+                            video_file_path = os.path.join(tmpdir, file)
+                            break
+            except Exception as e:
+                st.error(f"❌ Failed to download reel: {e}")
+
 language_option = st.selectbox("🌐 Select Audio Language", ["Auto", "English", "Hindi", "Urdu"])
 lang_code = None if language_option == "Auto" else language_option
 
-if uploaded_file:
+if video_file_path:
     try:
-        with open("temp_video.mp4", "wb") as f:
-            f.write(uploaded_file.read())
-        st.video("temp_video.mp4")
-
         st.write("🎧 Extracting audio...")
         with st.spinner("Extracting audio from video..."):
             subprocess.run([
-                "ffmpeg", "-i", "temp_video.mp4", "-vn", "-acodec", "pcm_s16le",
+                "ffmpeg", "-i", video_file_path, "-vn", "-acodec", "pcm_s16le",
                 "-ar", "16000", "-ac", "1", "audio.wav", "-y"
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -57,14 +92,14 @@ if uploaded_file:
             st.error("❌ Could not verify audio duration.")
             st.stop()
 
-        st.audio("audio.wav")  # Let user hear it if they want
+        st.audio("audio.wav")
 
         st.write("📝 Transcribing with Whisper...")
         with st.spinner("Transcribing audio..."):
             result = whisper_model.transcribe(
                 "audio.wav",
                 language=lang_code if lang_code else None,
-                task="translate"  # Force English output
+                task="translate"
             )
             transcript = result["text"].strip()
 
@@ -132,7 +167,6 @@ Respond with only the full formatted script below.
         st.text_area("📢 Final Script:", new_script, height=200)
         st.download_button("📥 Download Script", new_script, file_name="new_script.txt")
 
-        # Extract only VOICEOVER lines
         voiceover_lines = []
         for line in new_script.splitlines():
             if line.strip().lower().startswith("voiceover:"):
@@ -148,9 +182,11 @@ Respond with only the full formatted script below.
         else:
             st.info("No VOICEOVER lines found in the script.")
 
-        # Clean up
-        os.remove("temp_video.mp4")
-        os.remove("audio.wav")
+        # Clean up only if local file
+        if os.path.exists("temp_video.mp4"):
+            os.remove("temp_video.mp4")
+        if os.path.exists("audio.wav"):
+            os.remove("audio.wav")
 
     except Exception as e:
         st.error(f"❌ An error occurred: {str(e)}")
@@ -161,4 +197,3 @@ Respond with only the full formatted script below.
                 os.remove("audio.wav")
         except:
             pass
-
