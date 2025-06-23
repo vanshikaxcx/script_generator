@@ -5,34 +5,21 @@ import whisper
 import subprocess
 import google.generativeai as genai
 from dotenv import load_dotenv
-from pyannote.audio import Pipeline
 
 # Load environment variables
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
-hf_token = os.getenv("HF_TOKEN")  # Hugging Face token for pyannote.audio
 
 # SSL workaround for Whisper
 ssl._create_default_https_context = ssl._create_unverified_context
 
-st.title("🎬 Viral Script Generator with Speaker Diarization")
+st.title("🎬 Viral Script Generator")
 
 @st.cache_resource
 def load_whisper_model():
     return whisper.load_model("base")
 
-@st.cache_resource
-def load_diarization_pipeline():
-    if not hf_token:
-        st.error("❌ Hugging Face token for pyannote.audio not found. Please set HF_TOKEN in .env")
-        st.stop()
-    return Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.0",
-        use_auth_token=hf_token
-    )
-
 whisper_model = load_whisper_model()
-diarization_pipeline = load_diarization_pipeline()
 
 uploaded_file = st.file_uploader("📁 Upload a video", type=["mp4", "mov", "mkv"])
 language_option = st.selectbox("🌐 Select Audio Language", ["Auto", "English", "Hindi", "Urdu"])
@@ -72,24 +59,6 @@ if uploaded_file:
 
         st.audio("audio.wav")  # Let user hear it if they want
 
-        # --- Speaker Diarization ---
-        st.write("🔎 Performing speaker diarization...")
-        with st.spinner("Identifying speakers..."):
-            diarization = diarization_pipeline("audio.wav")
-
-        speaker_segments = []
-        for segment, _, speaker in diarization.itertracks(yield_label=True):
-            speaker_segments.append({
-                "start": segment.start,
-                "end": segment.end,
-                "speaker": speaker
-            })
-            st.write(f"{segment.start:.2f}s - {segment.end:.2f}s: {speaker}")
-
-        if not speaker_segments:
-            st.info("No speakers detected.")
-
-        # --- Whisper Transcription ---
         st.write("📝 Transcribing with Whisper...")
         with st.spinner("Transcribing audio..."):
             result = whisper_model.transcribe(
@@ -106,33 +75,6 @@ if uploaded_file:
         st.success("✅ Transcription complete")
         st.text_area("📄 Transcript:", transcript, height=150)
 
-        # --- Align Whisper segments with diarization for speaker-attributed transcript ---
-        segments = result.get("segments", [])
-
-        def find_speaker_for_segment(start, end, speaker_segments):
-            # Find the speaker segment with the largest overlap
-            max_overlap = 0
-            assigned_speaker = "Unknown"
-            for seg in speaker_segments:
-                overlap = max(0, min(end, seg["end"]) - max(start, seg["start"]))
-                if overlap > max_overlap:
-                    max_overlap = overlap
-                    assigned_speaker = seg["speaker"]
-            return assigned_speaker
-
-        speaker_transcript = []
-        for seg in segments:
-            speaker = find_speaker_for_segment(seg["start"], seg["end"], speaker_segments)
-            speaker_transcript.append(f"{speaker}: {seg['text']}")
-
-        st.text_area("🗣️ Speaker-attributed Transcript:", "\n".join(speaker_transcript), height=200)
-        st.download_button(
-            "📥 Download Speaker Transcript",
-            "\n".join(speaker_transcript),
-            file_name="speaker_transcript.txt"
-        )
-
-        # --- Generate Viral Script ---
         st.write("🧠 Generating fresh, viral-ready script...")
 
         prompt = f"""
@@ -219,3 +161,6 @@ Respond with only the full formatted script below.
                 os.remove("audio.wav")
         except:
             pass
+
+also tell me what changes i will have to make in this file and where and what
+apart from this tell be step by step how to activate speaker diarization in this project
