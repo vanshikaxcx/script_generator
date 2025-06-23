@@ -22,12 +22,12 @@ def load_whisper_model():
 
 whisper_model = load_whisper_model()
 
-input_mode = st.radio("📥 Choose input type:", ["Upload Video", "Paste Reel Link"])
+input_mode = st.radio(" Choose input type:", ["Upload Video", "Paste Reel Link"])
 video_file_path = None
 temp_audio_file = "audio.wav"
 
 if input_mode == "Upload Video":
-    uploaded_file = st.file_uploader("📁 Upload a video", type=["mp4", "mov", "mkv"])
+    uploaded_file = st.file_uploader(" Upload a video", type=["mp4", "mov", "mkv"])
     if uploaded_file:
         with open("temp_video.mp4", "wb") as f:
             f.write(uploaded_file.read())
@@ -35,9 +35,9 @@ if input_mode == "Upload Video":
         st.video("temp_video.mp4")
 
 elif input_mode == "Paste Reel Link":
-    reel_link = st.text_input("🔗 Paste Instagram Reel URL")
+    reel_link = st.text_input(" Paste Instagram Reel URL")
     if reel_link:
-        st.info("🔄 Downloading Reel...")
+        st.info(" Downloading Reel...")
         with st.spinner("Fetching reel from Instagram..."):
             try:
                 with tempfile.TemporaryDirectory() as tmpdir:
@@ -57,13 +57,13 @@ elif input_mode == "Paste Reel Link":
                             break
 
                 if not video_file_path or not os.path.exists(video_file_path):
-                    st.error("❌ Video download failed. Could not process the reel.")
+                    st.error(" Video download failed. Could not process the reel.")
                     st.stop()
 
                 st.video(video_file_path)
 
             except Exception as e:
-                st.error(f"❌ Failed to download reel: {e}")
+                st.error(f" Failed to download reel: {e}")
                 st.stop()
 
 language_option = st.selectbox("🌐 Select Audio Language", ["Auto", "English", "Hindi", "Urdu"])
@@ -80,16 +80,16 @@ if video_file_path:
             result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if result.returncode != 0 or not os.path.exists(temp_audio_file):
-                st.error("❌ Audio extraction failed.")
+                st.error(" Audio extraction failed.")
                 st.stop()
 
         if os.path.getsize(temp_audio_file) == 0:
-            st.error("❌ Extracted audio is empty. Try another video.")
+            st.error(" Extracted audio is empty. Try another video.")
             st.stop()
 
         st.audio(temp_audio_file)
 
-        st.write("📝 Transcribing with Whisper...")
+        st.write(" Transcribing with Whisper...")
         with st.spinner("Transcribing..."):
             result = whisper_model.transcribe(
                 temp_audio_file,
@@ -99,13 +99,13 @@ if video_file_path:
             transcript = result["text"].strip()
 
         if not transcript:
-            st.error("❌ Transcription returned no text.")
+            st.error(" Transcription returned no text.")
             st.stop()
 
-        st.success("✅ Transcription complete")
-        st.text_area("📄 Transcript:", transcript, height=150)
+        st.success(" Transcription complete")
+        st.text_area(" Transcript:", transcript, height=150)
 
-        st.write("🧠 Generating fresh, viral-ready script...")
+        st.write(" Generating fresh, viral-ready script...")
 
         prompt = f"""
 You're a creative director and viral scriptwriter for Gen-Z Instagram Reels in the Indian subcontinent.
@@ -141,8 +141,8 @@ Now reimagine it completely and write a new Instagram Reel script. Respond with 
             response = gemini_model.generate_content(prompt)
 
         new_script = response.text.strip().replace("**", "")
-        st.text_area("📢 Final Script:", new_script, height=200)
-        st.download_button("📥 Download Script", new_script, file_name="new_script.txt")
+        st.text_area(" Final Script:", new_script, height=200)
+        st.download_button(" Download Script", new_script, file_name="new_script.txt")
 
         voiceover_lines = []
         for line in new_script.splitlines():
@@ -154,8 +154,8 @@ Now reimagine it completely and write a new Instagram Reel script. Respond with 
         voiceover_script = "\n".join(voiceover_lines)
 
         if voiceover_script:
-            st.text_area("🎤 Voiceover Script Only:", voiceover_script, height=150)
-            st.download_button("🔊 Download Voiceover Script", voiceover_script, file_name="voiceover_script.txt")
+            st.text_area(" Voiceover Script Only:", voiceover_script, height=150)
+            st.download_button(" Download Voiceover Script", voiceover_script, file_name="voiceover_script.txt")
         else:
             st.info("No VOICEOVER lines found in the script.")
 
@@ -165,7 +165,7 @@ Now reimagine it completely and write a new Instagram Reel script. Respond with 
             os.remove(temp_audio_file)
 
     except Exception as e:
-        st.error(f"❌ An error occurred: {str(e)}")
+        st.error(f" An error occurred: {str(e)}")
         try:
             if os.path.exists("temp_video.mp4"):
                 os.remove("temp_video.mp4")
