@@ -2,6 +2,8 @@
 
 Scripttt is a Python web application that enables content creators to repurpose long-form video content into concise, engaging scripts for short-form platforms such as Instagram Reels and YouTube Shorts. Built with Gradio, Scripttt combines state-of-the-art transcription, speaker diarization, and script generation to deliver production-ready outputs that reflect the tone and style of the original conversation.
 
+[![Open in Hugging Face Spaces](https://img.shields.io/badge/Open%20in-Hugging%20Face%20Spaces-blue?logo=huggingface&logoColor=white)](https://vanshikaa11-scripttt.hf.space)
+
 ## Features
 
 - **Video File Uploads Only**  
